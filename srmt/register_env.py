@@ -4,7 +4,7 @@ from sample_factory.envs.env_utils import register_env
 from sample_factory.utils.attr_dict import AttrDict
 
 from env.create_env import create_env_base, create_pogematmaze_env
-from env.tmaze_env import create_tmaze_env
+#from env.tmaze_env import create_tmaze_env
 from srmt.training_config import Experiment
 
 import gymnasium
@@ -17,9 +17,9 @@ def create_env(environment_cfg: Environment, preprocessing_cfg: PreprocessorConf
     env = wrap_preprocessors(env, config=preprocessing_cfg, auto_reset=True)
     return env
 
-def create_register_env_tmaze(environment_cfg: EnvironmentTMaze):
-    env = create_tmaze_env(environment_cfg)
-    return env
+# def create_register_env_tmaze(environment_cfg: EnvironmentTMaze):
+#     env = create_tmaze_env(environment_cfg)
+#     return env
 
 def create_register_env_pogematmaze(environment_cfg: EnvironmentPogemaTMaze, preprocessing_cfg: PreprocessorConfig):
     env = create_pogematmaze_env(environment_cfg)
