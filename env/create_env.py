@@ -157,7 +157,7 @@ class MultiMapWrapper(gymnasium.Wrapper):
                         cfg.size = max(roof*2 + corrdor_len, map_dim)
                         if 'train' not in map_name: 
                             cfg.max_episode_steps = 2 * corrdor_len + 500 # 2 * 50 + 100 #
-                           cfg = GridConfig(**cfg.dict())
+                            cfg = GridConfig(**cfg.dict())
                     zz = [(k, v) for k, v in cfg.dict().items() if k != 'map' ]
                     self._configs.append(cfg)
             if not self._configs:
