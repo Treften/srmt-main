@@ -81,7 +81,16 @@ def run(config=None):
                    anonymous="allow", job_type=exp.environment.env, group='train', name=wandb_run_name)
     sfconfig = create_sf_config(exp)
     
-    
+    import pogema
+    import inspect
+    import pogema.grid
+
+    print("Pogema:", pogema.__file__)
+    print("Grid source:")
+    print(inspect.getsource(pogema.grid.Grid.__init__))
+    from pogema import envs
+
+    print(inspect.getsource(envs.Pogema._initialize_grid))
     flat_config, runner = make_runner(sfconfig)
     register_msg_handlers(flat_config, runner)
     status = runner.init()
