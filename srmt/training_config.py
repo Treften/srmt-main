@@ -168,7 +168,7 @@ class EnvironmentBtlnck(Environment):
     agent_bins: Optional[list] = None 
     grid_config: DecMAPFConfig = DecMAPFConfig(on_target='finish',
                                                max_episode_steps=64,
-                                               map_name=r'bottlenecks-9-330', num_agents=2,
+                                               map_name=r'bottlenecks9-v-train-330-8', num_agents=2,
                                                obs_radius=2,
                                                collision_system='block_both', 
                                               )
