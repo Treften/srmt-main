@@ -99,6 +99,38 @@ def run(config=None):
     
     return status
 
+    from pathlib import Path
+    import pogema.grid
+
+    path = Path(pogema.grid.__file__)
+    source = path.read_text()
+
+    old = "        self.obstacles = self.obstacles.astype(np.int32)"
+
+    new = '''        if self.obstacles.dtype.kind in ("U", "S", "O"):
+                mapping = {".": self.config.FREE, "#": self.config.OBSTACLE}
+                symbols = set(np.unique(self.obstacles).tolist())
+                unknown = symbols - mapping.keys()
+                if unknown:
+                    raise ValueError(f"Unknown map symbols: {unknown}")
+                self.obstacles = np.vectorize(mapping.__getitem__)(self.obstacles)
+
+            self.obstacles = self.obstacles.astype(np.int32)'''
+
+    if old not in source:
+        raise RuntimeError("Исходная строка не найдена. Файл не изменён.")
+
+    backup = path.with_suffix(".py.bak")
+    backup.write_text(source)
+
+    path.write_text(source.replace(old, new, 1))
+
+    import py_compile
+    py_compile.compile(str(path), doraise=True)
+
+    print("Исправлено:", path)
+    print("Резервная копия:", backup)
+
 
 def run_hparams(config=None):
     
