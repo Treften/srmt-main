@@ -91,13 +91,6 @@ def run(config=None):
     from pogema import envs
 
     print(inspect.getsource(envs.Pogema._initialize_grid))
-    flat_config, runner = make_runner(sfconfig)
-    register_msg_handlers(flat_config, runner)
-    status = runner.init()
-    if status == ExperimentStatus.SUCCESS:
-        status = runner.run()
-    
-    return status
 
     from pathlib import Path
     import pogema.grid
@@ -130,6 +123,16 @@ def run(config=None):
 
     print("Исправлено:", path)
     print("Резервная копия:", backup)
+    
+    flat_config, runner = make_runner(sfconfig)
+    register_msg_handlers(flat_config, runner)
+    status = runner.init()
+    if status == ExperimentStatus.SUCCESS:
+        status = runner.run()
+    
+    return status
+
+    
 
 
 def run_hparams(config=None):
