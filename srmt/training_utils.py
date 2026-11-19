@@ -29,52 +29,33 @@ def run(config=None):
 
     from pathlib import Path
     import py_compile
-    import numpy as np
 
     path = Path("/usr/local/envs/srmt_env/lib/python3.10/site-packages/pogema/grid.py")
-    backup = path.with_suffix(".py.bak")
+    text = path.read_text()
 
-    # Восстанавливаем оригинал
-    if not backup.exists():
-        raise FileNotFoundError("Резервная копия grid.py не найдена!")
+    start = text.index('        if self.obstacles.dtype.kind in ("U", "S", "O"):')
+    end = text.index("        self.obstacles = self.obstacles.astype(np.int32)", start)
 
-    source = backup.read_text()
-    lines = source.splitlines(keepends=True)
+    new = '''        if self.obstacles.dtype.kind in ("U", "S", "O"):
+                mapping = {".": self.config.FREE, "#": self.config.OBSTACLE}
+                self.obstacles = np.array([
+                    list(str(line).rstrip("\\\\r\\\\n"))
+                    for line in self.obstacles
+                ])
+                symbols = set(np.unique(self.obstacles).tolist())
+                unknown = symbols - mapping.keys()
+                if unknown:
+                    raise ValueError(f"Unknown map symbols: {unknown}")
+                self.obstacles = np.vectorize(mapping.__getitem__)(self.obstacles)
 
-    # Ищем исходную строку
-    idx = next(
-        (i for i, line in enumerate(lines)
-        if line.strip() == "self.obstacles = self.obstacles.astype(np.int32)"),
-        None
-    )
+    '''
 
-    if idx is None:
-        raise RuntimeError("Не найдена исходная строка преобразования.")
+    text = text[:start] + new + text[end:]
+    path.write_text(text)
 
-    # Отступ исходной строки — 8 пробелов
-    indent = lines[idx][:len(lines[idx]) - len(lines[idx].lstrip())]
-    inner = indent + "    "
-
-    patch = [
-        f'{indent}if self.obstacles.dtype.kind in ("U", "S", "O"):\n',
-        f'{inner}mapping = {{".": self.config.FREE, "#": self.config.OBSTACLE}}\n',
-        f'{inner}symbols = set(np.unique(self.obstacles).tolist())\n',
-        f'{inner}unknown = symbols - mapping.keys()\n',
-        f'{inner}if unknown:\n',
-        f'{inner}    raise ValueError(f"Unknown map symbols: {{unknown}}")\n',
-        f'{inner}self.obstacles = np.vectorize(mapping.__getitem__)(self.obstacles)\n',
-        f'{indent}self.obstacles = self.obstacles.astype(np.int32)\n'
-    ]
-
-    lines[idx:idx + 1] = patch
-    path.write_text("".join(lines))
-
-    # Проверка
     py_compile.compile(str(path), doraise=True)
+    print("grid.py исправлен, синтаксис проверен")
 
-    print("Патч применён успешно!")
-    print("Путь:", path)
-    print("Отступ блока:", len(indent), "пробелов")
     register_custom_model()
     
     if config is None:
