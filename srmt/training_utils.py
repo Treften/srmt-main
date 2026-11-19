@@ -26,7 +26,55 @@ def create_sf_config(exp: Experiment):
 
 
 def run(config=None):
-    
+
+    from pathlib import Path
+    import py_compile
+    import numpy as np
+
+    path = Path("/usr/local/envs/srmt_env/lib/python3.10/site-packages/pogema/grid.py")
+    backup = path.with_suffix(".py.bak")
+
+    # Восстанавливаем оригинал
+    if not backup.exists():
+        raise FileNotFoundError("Резервная копия grid.py не найдена!")
+
+    source = backup.read_text()
+    lines = source.splitlines(keepends=True)
+
+    # Ищем исходную строку
+    idx = next(
+        (i for i, line in enumerate(lines)
+        if line.strip() == "self.obstacles = self.obstacles.astype(np.int32)"),
+        None
+    )
+
+    if idx is None:
+        raise RuntimeError("Не найдена исходная строка преобразования.")
+
+    # Отступ исходной строки — 8 пробелов
+    indent = lines[idx][:len(lines[idx]) - len(lines[idx].lstrip())]
+    inner = indent + "    "
+
+    patch = [
+        f'{indent}if self.obstacles.dtype.kind in ("U", "S", "O"):\n',
+        f'{inner}mapping = {{".": self.config.FREE, "#": self.config.OBSTACLE}}\n',
+        f'{inner}symbols = set(np.unique(self.obstacles).tolist())\n',
+        f'{inner}unknown = symbols - mapping.keys()\n',
+        f'{inner}if unknown:\n',
+        f'{inner}    raise ValueError(f"Unknown map symbols: {{unknown}}")\n',
+        f'{inner}self.obstacles = np.vectorize(mapping.__getitem__)(self.obstacles)\n',
+        f'{indent}self.obstacles = self.obstacles.astype(np.int32)\n'
+    ]
+
+    lines[idx:idx + 1] = patch
+    path.write_text("".join(lines))
+
+    # Проверка
+    py_compile.compile(str(path), doraise=True)
+
+    print("Патч применён успешно!")
+    print("Путь:", path)
+    print("Отступ блока:", len(indent), "пробелов")
     register_custom_model()
     
     if config is None:
@@ -91,56 +139,7 @@ def run(config=None):
     from pogema import envs
 
     print(inspect.getsource(envs.Pogema._initialize_grid))
-
-    from pathlib import Path
-    from pathlib import Path
-    import py_compile
-
-    path = Path("/usr/local/envs/srmt_env/lib/python3.10/site-packages/pogema/grid.py")
-    backup = path.with_suffix(".py.bak")
-
-    # Восстанавливаем исходный файл
-    if backup.exists():
-        source = backup.read_text()
-    else:
-        source = path.read_text()
-
-    lines = source.splitlines(keepends=True)
-
-    # Находим строку преобразования obstacles
-    idx = next(
-        (i for i, line in enumerate(lines)
-        if line.strip() == "self.obstacles = self.obstacles.astype(np.int32)"),
-        None
-    )
-
-    if idx is None:
-        raise RuntimeError("Не найдена строка преобразования obstacles.")
-
-    # Определяем отступ исходной строки
-    indent = lines[idx][:len(lines[idx]) - len(lines[idx].lstrip())]
-    inner = indent + "    "
-
-    patch = [
-        f'{inner}if self.obstacles.dtype.kind in ("U", "S", "O"):\n',
-        f'{inner}    mapping = {{".": self.config.FREE, "#": self.config.OBSTACLE}}\n',
-        f'{inner}    symbols = set(np.unique(self.obstacles).tolist())\n',
-        f'{inner}    unknown = symbols - mapping.keys()\n',
-        f'{inner}    if unknown:\n',
-        f'{inner}        raise ValueError(f"Unknown map symbols: {{unknown}}")\n',
-        f'{inner}    self.obstacles = np.vectorize(mapping.__getitem__)(self.obstacles)\n',
-        '\n',
-        f'{indent}self.obstacles = self.obstacles.astype(np.int32)\n'
-    ]
-
-    lines[idx:idx + 1] = patch
-    path.write_text("".join(lines))
-
-    # Проверяем синтаксис
-    py_compile.compile(str(path), doraise=True)
-
-    print("Патч успешно применён.")
-    print("Файл:", path)
+    
     
     flat_config, runner = make_runner(sfconfig)
     register_msg_handlers(flat_config, runner)
