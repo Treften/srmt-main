@@ -93,36 +93,54 @@ def run(config=None):
     print(inspect.getsource(envs.Pogema._initialize_grid))
 
     from pathlib import Path
-    import pogema.grid
-
-    path = Path(pogema.grid.__file__)
-    source = path.read_text()
-
-    old = "        self.obstacles = self.obstacles.astype(np.int32)"
-
-    new = '''        if self.obstacles.dtype.kind in ("U", "S", "O"):
-                mapping = {".": self.config.FREE, "#": self.config.OBSTACLE}
-                symbols = set(np.unique(self.obstacles).tolist())
-                unknown = symbols - mapping.keys()
-                if unknown:
-                    raise ValueError(f"Unknown map symbols: {unknown}")
-                self.obstacles = np.vectorize(mapping.__getitem__)(self.obstacles)
-
-            self.obstacles = self.obstacles.astype(np.int32)'''
-
-    if old not in source:
-        raise RuntimeError("Исходная строка не найдена. Файл не изменён.")
-
-    backup = path.with_suffix(".py.bak")
-    backup.write_text(source)
-
-    path.write_text(source.replace(old, new, 1))
-
+    from pathlib import Path
     import py_compile
+
+    path = Path("/usr/local/envs/srmt_env/lib/python3.10/site-packages/pogema/grid.py")
+    backup = path.with_suffix(".py.bak")
+
+    # Восстанавливаем исходный файл
+    if backup.exists():
+        source = backup.read_text()
+    else:
+        source = path.read_text()
+
+    lines = source.splitlines(keepends=True)
+
+    # Находим строку преобразования obstacles
+    idx = next(
+        (i for i, line in enumerate(lines)
+        if line.strip() == "self.obstacles = self.obstacles.astype(np.int32)"),
+        None
+    )
+
+    if idx is None:
+        raise RuntimeError("Не найдена строка преобразования obstacles.")
+
+    # Определяем отступ исходной строки
+    indent = lines[idx][:len(lines[idx]) - len(lines[idx].lstrip())]
+    inner = indent + "    "
+
+    patch = [
+        f'{inner}if self.obstacles.dtype.kind in ("U", "S", "O"):\n',
+        f'{inner}    mapping = {{".": self.config.FREE, "#": self.config.OBSTACLE}}\n',
+        f'{inner}    symbols = set(np.unique(self.obstacles).tolist())\n',
+        f'{inner}    unknown = symbols - mapping.keys()\n',
+        f'{inner}    if unknown:\n',
+        f'{inner}        raise ValueError(f"Unknown map symbols: {{unknown}}")\n',
+        f'{inner}    self.obstacles = np.vectorize(mapping.__getitem__)(self.obstacles)\n',
+        '\n',
+        f'{indent}self.obstacles = self.obstacles.astype(np.int32)\n'
+    ]
+
+    lines[idx:idx + 1] = patch
+    path.write_text("".join(lines))
+
+    # Проверяем синтаксис
     py_compile.compile(str(path), doraise=True)
 
-    print("Исправлено:", path)
-    print("Резервная копия:", backup)
+    print("Патч успешно применён.")
+    print("Файл:", path)
     
     flat_config, runner = make_runner(sfconfig)
     register_msg_handlers(flat_config, runner)
