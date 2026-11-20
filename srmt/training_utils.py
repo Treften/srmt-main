@@ -60,36 +60,7 @@ def run(config=None):
 
     if str(config.get("attn_core", None)).lower() == "true":
         register_custom_core()
-    import sys
-    import numpy as np
-    import inspect
-    import pogema.grid as pg
-
-    print("Python:", sys.executable)
-    print("Модуль:", pg.__file__)
-
-    print("\n--- Загруженный Grid.__init__ ---")
-    print(inspect.getsource(pg.Grid.__init__))
-
-    print("\n--- Реальная карта из registry ---")
-    raw = pg.get_grid("bottlenecks9-v-train-330-8").get_obstacles()
-    arr = np.asarray(raw)
-
-    print("Тип:", type(raw))
-    print("Shape:", arr.shape)
-    print("Dtype:", arr.dtype)
-    print("Представление:", repr(raw))
-
-    if arr.ndim == 1:
-        print("\nСтроки карты:")
-        for i, line in enumerate(arr.tolist()):
-            print(i, repr(line))
-    elif arr.ndim == 2:
-        print("\nСтроки матрицы:")
-        for i, line in enumerate(arr.tolist()):
-            print(i, repr(line))
-
-    print("\nУникальные элементы:", repr(np.unique(arr).tolist()))
+    
     exp = Experiment(**config)
     flat_config = Namespace(**exp.dict())
     env_name = exp.environment.env
