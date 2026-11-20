@@ -27,34 +27,7 @@ def create_sf_config(exp: Experiment):
 
 def run(config=None):
 
-    from pathlib import Path
-    import py_compile
-
-    path = Path("/usr/local/envs/srmt_env/lib/python3.10/site-packages/pogema/grid.py")
-    text = path.read_text()
-
-    start = text.index('        if self.obstacles.dtype.kind in ("U", "S", "O"):')
-    end = text.index("        self.obstacles = self.obstacles.astype(np.int32)", start)
-
-    new = '''        if self.obstacles.dtype.kind in ("U", "S", "O"):
-                mapping = {".": self.config.FREE, "#": self.config.OBSTACLE}
-                self.obstacles = np.array([
-                    list(str(line).rstrip("\\\\r\\\\n"))
-                    for line in self.obstacles
-                ])
-                symbols = set(np.unique(self.obstacles).tolist())
-                unknown = symbols - mapping.keys()
-                if unknown:
-                    raise ValueError(f"Unknown map symbols: {unknown}")
-                self.obstacles = np.vectorize(mapping.__getitem__)(self.obstacles)
-
-    '''
-
-    text = text[:start] + new + text[end:]
-    path.write_text(text)
-
-    py_compile.compile(str(path), doraise=True)
-    print("grid.py исправлен, синтаксис проверен")
+    
 
     register_custom_model()
     
@@ -87,7 +60,36 @@ def run(config=None):
 
     if str(config.get("attn_core", None)).lower() == "true":
         register_custom_core()
+    import sys
+    import numpy as np
+    import inspect
+    import pogema.grid as pg
 
+    print("Python:", sys.executable)
+    print("Модуль:", pg.__file__)
+
+    print("\n--- Загруженный Grid.__init__ ---")
+    print(inspect.getsource(pg.Grid.__init__))
+
+    print("\n--- Реальная карта из registry ---")
+    raw = pg.get_grid("bottlenecks9-v-train-330-8").get_obstacles()
+    arr = np.asarray(raw)
+
+    print("Тип:", type(raw))
+    print("Shape:", arr.shape)
+    print("Dtype:", arr.dtype)
+    print("Представление:", repr(raw))
+
+    if arr.ndim == 1:
+        print("\nСтроки карты:")
+        for i, line in enumerate(arr.tolist()):
+            print(i, repr(line))
+    elif arr.ndim == 2:
+        print("\nСтроки матрицы:")
+        for i, line in enumerate(arr.tolist()):
+            print(i, repr(line))
+
+    print("\nУникальные элементы:", repr(np.unique(arr).tolist()))
     exp = Experiment(**config)
     flat_config = Namespace(**exp.dict())
     env_name = exp.environment.env
